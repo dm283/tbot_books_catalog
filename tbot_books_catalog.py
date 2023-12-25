@@ -9,7 +9,7 @@ from aiogram.utils.callback_answer import CallbackQuery, CallbackAnswer
 
 import os, configparser
 from pathlib import Path
-from lib_db_manager import db_connection, db_read_data, db_insert_data, db_execute
+from lib_db_manager import db_connection, db_read_data, db_insert_data, db_execute, first_run_create_table
 
 
 config = configparser.ConfigParser()
@@ -23,12 +23,13 @@ DB_TYPE = config['db']['db_type']
 DB_CONNECTION_STRING = config['db']['db_connection_string']
 DB_USER = config['db']['db_user']
 DB_PASSWORD = config['db']['db_password']
-DB_TABLE = 'books_catalog'
+DB_TABLE = config['db']['db_table']
 if DB_TYPE == '-m' and 'DSN' in DB_CONNECTION_STRING:
   DB_CONNECTION_STRING += (';UID='+DB_USER+';PWD='+DB_PASSWORD)
 
 
 conn, cursor = db_connection(DB_CONNECTION_STRING, DB_TYPE)
+first_run_create_table(conn, cursor, DB_TYPE)
 
 INPUT_STATUS = 'start'  #
 UPDATE_BOOK_DATA = tuple()
@@ -108,11 +109,16 @@ async def btn_update_book_confirm_handler(callback: CallbackQuery):
     # update_book_confirm
     global INPUT_STATUS, ADD_BOOK_TITLE, ADD_BOOK_AUTHOR, ADD_BOOK_PHOTO
 
+    if DB_TYPE == '-p':
+        update_date = 'now()'
+    elif DB_TYPE == '-s':
+        update_date = 'current_timestamp'
+
     query = f"""update {DB_TABLE} set 
         title='{ADD_BOOK_TITLE}', 
         author='{ADD_BOOK_AUTHOR}', 
         photo='{ADD_BOOK_PHOTO}', 
-        update_date=now() 
+        update_date={update_date}
         where id = {UPDATE_BOOK_DATA[0]}"""
     print('QUERY =', query)
     db_execute(conn, cursor, query)

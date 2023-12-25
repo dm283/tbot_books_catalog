@@ -15,7 +15,7 @@ DB_TYPE = config['db']['db_type']
 DB_CONNECTION_STRING = config['db']['db_connection_string']
 DB_USER = config['db']['db_user']
 DB_PASSWORD = config['db']['db_password']
-DB_TABLE = 'books_catalog'
+DB_TABLE = config['db']['db_table']
 if DB_TYPE == '-m' and 'DSN' in DB_CONNECTION_STRING:
   DB_CONNECTION_STRING += (';UID='+DB_USER+';PWD='+DB_PASSWORD)
 
@@ -29,6 +29,8 @@ def db_connection(db_connection_string, db_type):
             conn = psycopg2.connect(db_connection_string)  # postgre database
         elif db_type == '-m':
             conn = pyodbc.connect(db_connection_string)     # ms-sql database
+        elif db_type == '-s':
+            conn = sqlite3.connect(db_connection_string)
         cursor = conn.cursor()
         print('ok')
     except(Exception) as err:
@@ -62,15 +64,15 @@ def db_insert_data(conn, cursor, data_set, db_type, table, columns):
             extras.execute_values(cursor, query_insert_data, data_set)
             conn.commit()  
         
-        if db_type == '-m':
-            #  insert actions for MS-SQL database
+        elif db_type in ['-m', '-s']:
+            #  insert actions for MS-SQL or SQLITE database
             q_str = str()
             for i in range(len(columns.split(','))):
                 q_str += '?,'
             q_str = q_str[:-1]
             query_insert_data = f'insert into {table} ({columns}) values ({q_str})'
             cursor.executemany(query_insert_data, data_set)   
-            conn.commit()   
+            conn.commit()           
 
         print('ok')
 
@@ -82,7 +84,7 @@ def db_insert_data(conn, cursor, data_set, db_type, table, columns):
 
 def db_execute(conn, cursor, query):
     #  delete and update commands
-    print('deleting data from database ..... ', end='')
+    print('execute ..... ', end='')
     try:
         cursor.execute(query)
         conn.commit()        
@@ -92,12 +94,36 @@ def db_execute(conn, cursor, query):
         conn.rollback()
         sys.exit() 
 
+def first_run_create_table(conn, cursor, db_type):
+    #
+    if db_type == '-s':
+        query = f"""
+            create table if not exists {DB_TABLE} (	
+                id integer primary key,
+                title text not null,
+                author text not null,
+                photo text not null,
+                book_owner text not null,
+                create_date text default current_timestamp not null,
+                update_date text default null
+            )
+        """
+        db_execute(conn, cursor, query)
+
+
+
+
+
 
 #*********************
 # query = f'select * from {DB_TABLE}'
 # conn, cursor = db_connection(DB_CONNECTION_STRING, DB_TYPE)
-# db_read_data(cursor, query)
+# db_execute(conn, cursor, 'drop table books_catalog')
+# first_run_create_table(cursor, DB_TYPE)
+#print(db_read_data(cursor, query))
 
 # data_set = [('The left hand of darkness', 'Ursule Le Guin', '', '@omalit283'), ]
 # columns = 'title, author, photo, book_owner'
 # db_insert_data(conn, cursor, data_set, DB_TYPE, DB_TABLE, columns)
+
+# db_read_data(cursor, query)
