@@ -19,12 +19,16 @@ if os.path.exists(config_file):
 else:
   print("error! config file doesn't exist"); sys.exit()
 TOKEN = config['bot']['bot_token']
+DB_TYPE = config['db']['db_type']
 DB_CONNECTION_STRING = config['db']['db_connection_string']
 DB_USER = config['db']['db_user']
 DB_PASSWORD = config['db']['db_password']
 DB_TABLE = 'books_catalog'
+if DB_TYPE == '-m' and 'DSN' in DB_CONNECTION_STRING:
+  DB_CONNECTION_STRING += (';UID='+DB_USER+';PWD='+DB_PASSWORD)
 
-conn, cursor = db_connection(DB_CONNECTION_STRING)
+
+conn, cursor = db_connection(DB_CONNECTION_STRING, DB_TYPE)
 
 INPUT_STATUS = 'start'  #
 UPDATE_BOOK_DATA = tuple()
@@ -137,7 +141,7 @@ async def btn_add_book_confirm_handler(callback: CallbackQuery):
 
     data_set = [(ADD_BOOK_TITLE, ADD_BOOK_AUTHOR, ADD_BOOK_PHOTO, f'@{callback.from_user.username}'), ]
     columns = 'title, author, photo, book_owner'
-    db_insert_data(conn, cursor, data_set, DB_TABLE, columns)
+    db_insert_data(conn, cursor, data_set, DB_TYPE, DB_TABLE, columns)
 
     await callback.message.answer(text='book added successfully!')
     await callback.message.answer(text='Select an action:', reply_markup=builder.as_markup())
